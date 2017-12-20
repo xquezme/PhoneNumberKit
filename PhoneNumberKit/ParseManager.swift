@@ -168,4 +168,34 @@ final class ParseManager {
         return nil
     }
 
+    /// Get correct ISO 639 compliant region code for a number part.
+    ///
+    /// - Parameters:
+    ///   - nationalNumber: national number.
+    ///   - countryCode: country code.
+    ///   - leadingZero: whether or not the number has a leading zero.
+    /// - Returns: ISO 639 compliant region code.
+    func getRegionCode(ofNationalNumberPart nationalNumberPart: UInt64, countryCode: UInt64) -> String? {
+        guard let regexManager = regexManager, let metadataManager = metadataManager, let regions = metadataManager.territoriesByCode[countryCode] else { return nil }
+
+        if regions.count == 1 {
+            return regions[0].codeID
+        }
+
+        let nationalNumberString = String(nationalNumberPart)
+        for region in regions {
+            if let leadingDigits = region.leadingDigits {
+                if regexManager.matchesAtStart(leadingDigits, string: nationalNumberString) {
+                    return region.codeID
+                }
+            }
+            if parser.checkPartialNumberType("0" + nationalNumberString, metadata: region) != .unknown {
+                return region.codeID
+            }
+            if parser.checkPartialNumberType(nationalNumberString, metadata: region) != .unknown {
+                return region.codeID
+            }
+        }
+        return nil
+    }
 }

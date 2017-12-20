@@ -14,18 +14,18 @@ public final class PartialFormatter {
     private let phoneNumberKit: PhoneNumberKit
 
     weak var metadataManager: MetadataManager?
-    weak var parser: PhoneNumberParser?
+    weak var parseManager: ParseManager?
     weak var regexManager: RegexManager?
 
     public convenience init(phoneNumberKit: PhoneNumberKit = PhoneNumberKit(), defaultRegion: String = PhoneNumberKit.defaultRegionCode(), withPrefix: Bool = true) {
-        self.init(phoneNumberKit: phoneNumberKit, regexManager: phoneNumberKit.regexManager, metadataManager: phoneNumberKit.metadataManager, parser: phoneNumberKit.parseManager.parser, defaultRegion: defaultRegion, withPrefix: withPrefix)
+        self.init(phoneNumberKit: phoneNumberKit, regexManager: phoneNumberKit.regexManager, metadataManager: phoneNumberKit.metadataManager, parseManager: phoneNumberKit.parseManager, defaultRegion: defaultRegion, withPrefix: withPrefix)
     }
     
-    init(phoneNumberKit: PhoneNumberKit, regexManager: RegexManager, metadataManager: MetadataManager, parser: PhoneNumberParser, defaultRegion: String, withPrefix: Bool = true) {
+    init(phoneNumberKit: PhoneNumberKit, regexManager: RegexManager, metadataManager: MetadataManager, parseManager: ParseManager, defaultRegion: String, withPrefix: Bool = true) {
         self.phoneNumberKit = phoneNumberKit
         self.regexManager = regexManager
         self.metadataManager = metadataManager
-        self.parser = parser
+        self.parseManager = parseManager
         self.defaultRegion = defaultRegion
         updateMetadataForDefaultRegion()
         self.withPrefix = withPrefix
@@ -59,12 +59,14 @@ public final class PartialFormatter {
     
     public var currentRegion: String {
         get {
-            return currentMetadata?.codeID ?? defaultRegion
+            return currentRegionBasedOnNationalPrefix ?? currentMetadata?.codeID ?? defaultRegion
         }
     }
+
+    public var currentRegionBasedOnNationalPrefix: String?
     
     public func nationalNumber(from rawNumber: String) -> String {
-        guard let parser = parser else { return rawNumber }
+        guard let parser = parseManager?.parser else { return rawNumber }
         
         let iddFreeNumber = extractIDD(rawNumber)
         var nationalNumber = parser.normalizePhoneNumber(iddFreeNumber)
@@ -140,6 +142,7 @@ public final class PartialFormatter {
         currentMetadata = defaultMetadata
         prefixBeforeNationalNumber = String()
         shouldAddSpaceAfterNationalPrefix = false
+        currentRegionBasedOnNationalPrefix = nil
     }
     
     //MARK: Formatting Tests
@@ -240,9 +243,16 @@ public final class PartialFormatter {
         if prefixBeforeNationalNumber.isEmpty == false && prefixBeforeNationalNumber.first != "+" {
             prefixBeforeNationalNumber.append(PhoneNumberConstants.separatorBeforeNationalNumber)
         }
-        if let potentialCountryCode = parser?.extractPotentialCountryCode(rawNumber, nationalNumber: &numberWithoutCountryCallingCode), potentialCountryCode != 0 {
+        if let potentialCountryCode = parseManager?.parser.extractPotentialCountryCode(rawNumber, nationalNumber: &numberWithoutCountryCallingCode), potentialCountryCode != 0 {
             processedNumber = numberWithoutCountryCallingCode
-            currentMetadata = metadataManager?.mainTerritory(forCode: potentialCountryCode)
+            if let nationalNumber = UInt64(numberWithoutCountryCallingCode),
+                let bestFitTerritoryCode = self.parseManager?.getRegionCode(ofNationalNumberPart: nationalNumber, countryCode: potentialCountryCode) {
+                let bestFitMetaData = metadataManager?.filterTerritories(byCountry: bestFitTerritoryCode)
+                currentMetadata = bestFitMetaData ?? metadataManager?.mainTerritory(forCode: potentialCountryCode)
+                currentRegionBasedOnNationalPrefix = bestFitTerritoryCode
+            } else {
+                currentMetadata = metadataManager?.mainTerritory(forCode: potentialCountryCode)
+            }
             let potentialCountryCodeString = String(potentialCountryCode)
             prefixBeforeNationalNumber.append(potentialCountryCodeString)
             prefixBeforeNationalNumber.append(" ")

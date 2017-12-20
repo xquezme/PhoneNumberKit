@@ -170,7 +170,79 @@ final class PhoneNumberParser {
         }
         return .unknown
     }
-    
+
+    func checkPartialNumberType(_ nationalNumberPart: String, metadata: MetadataTerritory) -> PhoneNumberType {
+        if (isNumberPartMatchingAtStartDesc(nationalNumberPart, numberDesc: metadata.pager)) {
+            return .pager
+        }
+        if (isNumberPartMatchingAtStartDesc(nationalNumberPart, numberDesc: metadata.premiumRate)) {
+            return .premiumRate
+        }
+        if (isNumberPartMatchingAtStartDesc(nationalNumberPart, numberDesc: metadata.tollFree)) {
+            return .tollFree
+        }
+        if (isNumberPartMatchingAtStartDesc(nationalNumberPart, numberDesc: metadata.sharedCost)) {
+            return .sharedCost
+        }
+        if (isNumberPartMatchingAtStartDesc(nationalNumberPart, numberDesc: metadata.voip)) {
+            return .voip
+        }
+        if (isNumberPartMatchingAtStartDesc(nationalNumberPart, numberDesc: metadata.personalNumber)) {
+            return .personalNumber
+        }
+        if (isNumberPartMatchingAtStartDesc(nationalNumberPart, numberDesc: metadata.uan)) {
+            return .uan
+        }
+        if (isNumberPartMatchingAtStartDesc(nationalNumberPart, numberDesc: metadata.voicemail)) {
+            return .voicemail
+        }
+        if (isNumberPartMatchingAtStartDesc(nationalNumberPart, numberDesc: metadata.fixedLine)) {
+            if metadata.fixedLine?.nationalNumberPattern == metadata.mobile?.nationalNumberPattern {
+                return .fixedOrMobile
+            }
+            else if (isNumberPartMatchingAtStartDesc(nationalNumberPart, numberDesc: metadata.mobile)) {
+                return .fixedOrMobile
+            }
+            else {
+                return .fixedLine
+            }
+        }
+        if (isNumberPartMatchingAtStartDesc(nationalNumberPart, numberDesc: metadata.mobile)) {
+            return .mobile
+        }
+        return .unknown
+    }
+
+    /**
+     Checks if number matches description at start.
+     - Parameter nationalNumber: National number string.
+     - Parameter numberDesc:  MetadataPhoneNumberDesc of a given phone number type.
+     - Returns: True or false.
+     */
+    func isNumberPartMatchingAtStartDesc(_ nationalNumber: String, numberDesc: MetadataPhoneNumberDesc?) -> Bool {
+        guard let pattern = numberDesc?.nationalNumberPattern else {
+            return false
+        }
+
+        if regex.matchesAtStart(pattern, string: nationalNumber) {
+            return true
+        }
+
+        guard let example = numberDesc?.exampleNumber else {
+            return false
+        }
+
+        let numberOfPad = example.count - nationalNumber.count
+
+        guard numberOfPad > 0 else {
+            return false
+        }
+
+        let nationalWithTrailingZeros = nationalNumber + String(repeating: "0", count: numberOfPad)
+
+        return regex.matchesAtStart(pattern, string: nationalWithTrailingZeros)
+    }
+
     /**
      Checks if number matches description.
      - Parameter nationalNumber: National number string.

@@ -297,6 +297,24 @@ class PartialFormatterTests: XCTestCase {
         XCTAssertEqual(partialFormatter.currentRegion, "DE")
     }
 
+    func testSamePhoneCodeFormatPartial() {
+        let partialFormatter = PartialFormatter(phoneNumberKit: phoneNumberKit, defaultRegion: "US")
+        _ = partialFormatter.formatPartial("+1-613-555-0102")
+        XCTAssertEqual(partialFormatter.currentRegion, "CA")
+        _ = partialFormatter.formatPartial("+1819-281")
+        XCTAssertEqual(partialFormatter.currentRegion, "CA")
+        _ = partialFormatter.formatPartial("+1-416-555")
+        XCTAssertEqual(partialFormatter.currentRegion, "CA")
+
+        partialFormatter.defaultRegion = "RU"
+        _ = partialFormatter.formatPartial("+7(702) 988-88-89")
+        XCTAssertEqual(partialFormatter.currentRegion, "KZ")
+        _ = partialFormatter.formatPartial("+7(702)988")
+        XCTAssertEqual(partialFormatter.currentRegion, "KZ")
+        _ = partialFormatter.formatPartial("+7(904)")
+        XCTAssertEqual(partialFormatter.currentRegion, "RU")
+    }
+
     // MARK: convenience initializer
     func testConvenienceInitializerAllowsFormatting() {
         let partialFormatter = PartialFormatter(defaultRegion: "US")
